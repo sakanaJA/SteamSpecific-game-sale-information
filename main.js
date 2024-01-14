@@ -1,44 +1,34 @@
-const { Client, Intents, Permissions, MessageEmbed, Collection } = require('discord.js');
-const { readdirSync } = require('fs');
+const Discord = require('discord.js');
+const axios = require('axios');
+const { Client, Intents } = require('discord.js');
 
-// Discordクライアントの設定
 const client = new Client({
-    intents: [
-        Intents.FLAGS.GUILDS,
-        Intents.FLAGS.GUILD_MEMBERS,
-        Intents.FLAGS.GUILD_MESSAGES,
-        Intents.FLAGS.GUILD_VOICE_STATES
-    ],
-    disableMentions: 'everyone',
+    intents: [Intents.FLAGS.GUILDS, Intents.FLAGS.GUILD_MESSAGES]
 });
 
-// コンフィグファイルの読み込み
-client.config = require('./config');
+const steamApiUrl = 'https://api.steampowered.com/ISteamApps/GetAppList/v2/';
 
-// コマンドの読み込み
-client.commands = new Collection();
-readdirSync('./commands/').forEach(dirs => {
-    const commands = readdirSync(`./commands/${dirs}`).filter(files => files.endsWith('.js'));
-    for (const file of commands) {
-        const command = require(`./commands/${dirs}/${file}`);
-        client.commands.set(command.name.toLowerCase(), command);
-    };
+client.on('ready', () => {
+    console.log(`Logged in as ${client.user.tag}!`);
 });
 
-// メッセージ削除機能
 client.on('messageCreate', async message => {
-    if (message.content === '!clear' && message.member.permissions.has(Permissions.FLAGS.ADMINISTRATOR)) {
+    if (message.content === '!steam') {
         try {
-            let fetched = await message.channel.messages.fetch({ limit: 100 });
-            await message.channel.bulkDelete(fetched);
-            console.log('Messages deleted');
-message.channel.send('All messages have been deleted.\nメッセージがすべて削除されました。');
+            const response = await axios.get(steamApiUrl, { params: { key: process.env.STEAM } });
+            // Steam APIの応答構造に応じてコードを調整する必要があります。
+            // ここでは、response.data.gamesを使用していますが、これは仮の例です。
+            const games = response.data.games; // 仮のレスポンスデータ構造
+            let reply = 'Steamの人気ゲーム:\n';
+            games.forEach(game => {
+                reply += `${game.name}\n`; // ゲーム名を追加
+            });
+            message.channel.send(reply);
         } catch (error) {
-            console.error('Error in message deletion: ', error);
-            message.channel.send('メッセージの削除中にエラーが発生しました。');
+            console.error(error);
+            message.channel.send('エラーが発生しました。');
         }
     }
 });
 
-// ボットのログイン
 client.login(process.env.TOKEN);
